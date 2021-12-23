@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func NewDatabase() (*gorm.DB, error) {
-	fmt.Println("Setting up new database connection")
+	log.Info("Setting up new database connection")
 
 	db_host := os.Getenv("DB_HOST")
 	db_name := os.Getenv("DB_NAME")
@@ -21,7 +22,7 @@ func NewDatabase() (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		fmt.Println("Can not connect to database")
+		log.Error("Can not connect to database")
 		return nil, err
 	}
 
