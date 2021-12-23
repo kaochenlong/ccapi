@@ -4,8 +4,11 @@ import (
 	"cancanapi/internal/comment"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 )
@@ -75,6 +78,47 @@ func BasicAuth(orig func(w http.ResponseWriter, r *http.Request)) func(w http.Re
 			orig(w, r)
 		} else {
 			sendErrorResponse(w, "not authorized", errors.New("not authorized"))
+		}
+	}
+}
+
+func validateToken(accessToken string) bool {
+	signingKey := "loveyou"
+
+	token, err := jwt.Parse(signingKey, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("there has been an error")
+		}
+
+		return signingKey, nil
+	})
+
+	if err != nil {
+		return false
+	}
+
+	return token.Valid
+}
+
+func JWTAuth(orig func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header["Authorization"]
+		if authHeader == nil {
+			sendErrorResponse(w, "not authorized", errors.New("not authorized"))
+			return
+		}
+
+		authHeaderParts := strings.Split(authHeader[0], " ")
+		if len(authHeaderParts) != 2 || strings.ToLower(authHeaderParts[0]) != "bearer" {
+			sendErrorResponse(w, "not authorized", errors.New("not authorized"))
+			return
+		}
+
+		if validateToken(authHeaderParts[1]) {
+			orig(w, r)
+		} else {
+			sendErrorResponse(w, "not authorized", errors.New("not authorized"))
+			return
 		}
 	}
 }
