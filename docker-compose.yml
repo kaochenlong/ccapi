@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:14.1-alpine
+    container_name: cancanapi_db
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=cancanapi
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - fullstack
+    volumes:
+      - database_postgres:/var/lib/postgresql/data
+  api:
+    build: .
+    container_name: cancanapi_app
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=cancanapi
+      - DB_HOST=db
+      - DB_PORT=5432
+    ports:
+      - 3000:3000
+    depends_on:
+      - db
+    networks:
+      - fullstack
+
+volumes:
+  database_postgres:
+
+networks:
+  fullstack:
+    driver: bridge
