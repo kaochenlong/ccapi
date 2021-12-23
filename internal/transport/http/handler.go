@@ -3,6 +3,7 @@ package http
 import (
 	"cancanapi/internal/comment"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -36,20 +37,10 @@ func (h *Handler) SetupRoutes() {
 	})
 
 	h.Router.HandleFunc("/api/comments", h.GetAllComments).Methods("GET")
-	h.Router.HandleFunc("/api/comments", h.PostComment).Methods("POST")
+	h.Router.HandleFunc("/api/comments", BasicAuth(h.PostComment)).Methods("POST")
 	h.Router.HandleFunc("/api/comments/{id}", h.GetComment).Methods("GET")
-	h.Router.HandleFunc("/api/comments/{id}", h.UpdateComment).Methods("PUT")
-	h.Router.HandleFunc("/api/comments/{id}", h.DeleteComment).Methods("DELETE")
-}
-
-func LoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.WithFields(log.Fields{
-			"Method": r.Method,
-			"Path":   r.URL.Path,
-		}).Info("handled request")
-		next.ServeHTTP(w, r)
-	})
+	h.Router.HandleFunc("/api/comments/{id}", BasicAuth(h.UpdateComment)).Methods("PUT")
+	h.Router.HandleFunc("/api/comments/{id}", BasicAuth(h.DeleteComment)).Methods("DELETE")
 }
 
 func sendErrorResponse(w http.ResponseWriter, message string, err error) {
@@ -64,4 +55,26 @@ func sendOKResponse(w http.ResponseWriter, resp interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	return json.NewEncoder(w).Encode(resp)
+}
+
+// middlewares
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.WithFields(log.Fields{
+			"Method": r.Method,
+			"Path":   r.URL.Path,
+		}).Info("handled request")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func BasicAuth(orig func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if user == "admin" && pass == "cancan" && ok {
+			orig(w, r)
+		} else {
+			sendErrorResponse(w, "not authorized", errors.New("not authorized"))
+		}
+	}
 }
